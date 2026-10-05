@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do Professor — Londrina EC</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
+        /* CORES OFICIAIS LONDRINA EC — AZUL, BRANCO E PRETO */
+        :root {
+            --azul: #003366;
+            --azul-escuro: #002244;
+            --branco: #ffffff;
+            --cinza-claro: #f5f5f5;
+            --cinza: #e0e0e0;
+            --cinza-texto: #333333;
+            --preto: #121212;
+            --dourado: #d4af37;
+            --vermelho: #c62828;
+        }
+        body {
+            background: linear-gradient(135deg, var(--azul), var(--azul-escuro), var(--preto));
+            min-height: 100vh;
+            padding: 15px;
+            color: var(--branco);
+        }
+        .container { max-width: 950px; margin: 0 auto; }
+        .cabecalho { text-align: center; margin-bottom: 25px; }
+        .escudo {
+            font-size: 3.5rem;
+            margin-bottom: 8px;
+        }
+        .titulo {
+            font-size: 1.8rem;
+            font-weight: 900;
+            letter-spacing: 1px;
+            color: var(--branco);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+        }
+        .subtitulo { opacity: 0.9; font-size: 0.95rem; margin-top: 5px; }
+        .alerta-conexao {
+            background: rgba(255,255,255,0.15);
+            border-left: 4px solid var(--dourado);
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        .abas { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+        .aba {
+            flex: 1; min-width: 100px;
+            padding: 14px 12px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            background: rgba(255,255,255,0.2);
+            color: var(--branco);
+            transition: all 0.3s ease;
+        }
+        .aba.ativa {
+            background: var(--branco);
+            color: var(--azul);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .aba:hover:not(.ativa) { background: rgba(255,255,255,0.3); }
+        .conteudo-aba { display: none; }
+        .conteudo-aba.ativa { display: block; }
+        .card {
+            background: var(--branco);
+            color: var(--cinza-texto);
+            border-radius: 16px;
+            padding: 22px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            border-top: 4px solid var(--azul);
+        }
+        h2 {
+            font-size: 1.2rem;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--azul);
+        }
+        .grupo { margin-bottom: 16px; }
+        label { display: block; margin-bottom: 6px; font-weight: 600; color: var(--preto); }
+        input, select {
+            width: 100%;
+            padding: 13px;
+            border-radius: 8px;
+            border: 2px solid var(--cinza);
+            font-size: 1rem;
+            transition: border 0.3s;
+        }
+        input:focus, select:focus { outline: none; border-color: var(--azul); }
+        .btn {
+            border: none;
+            padding: 13px 20px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-pequeno { padding: 8px 14px; font-size: 0.85rem; }
+        .btn-principal {
+            background: var(--azul);
+            color: var(--branco);
+            width: 100%;
+        }
+        .btn-principal:hover { background: var(--azul-escuro); transform: translateY(-1px); }
+        .btn-vermelho { background: var(--vermelho); color: var(--branco); }
+        .btn-vermelho:hover { background: #b71c1c; }
+        .btn-dourado { background: var(--dourado); color: var(--preto); }
+        .btn-dourado:hover { background: #b8860b; }
+        .lista { display: flex; flex-direction: column; gap: 12px; margin-top: 15px; }
+        .item {
+            background: var(--cinza-claro);
+            border-radius: 12px;
+            padding: 16px;
+            border-left: 5px solid var(--azul);
+            transition: transform 0.2s;
+        }
+        .item:hover { transform: translateX(3px); }
+        .item-cabecalho {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .item-nome { font-weight: 700; font-size: 1.05rem; color: var(--azul); }
+        .item-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
+        .vazio { text-align: center; padding: 30px; color: #888; font-style: italic; }
+        .filtro { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; flex-wrap: wrap; }
+        .metricas { display: flex; flex-wrap: wrap; gap: 15px; margin: 12px 0; }
+        .metrica { flex: 1; min-width: 120px; text-align: center; }
+        .metrica span { font-size: 0.85rem; color: #777; display: block; }
+        .metrica .valor-m { font-weight: 700; font-size: 1.15rem; color: var(--azul); }
+        .qtd-badge {
+            display: inline-block;
+            background: var(--azul);
+            color: white;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="cabecalho">
+            <div class="escudo">🦈</div>
+            <div class="titulo">LONDRINA ESPORTE CLUBE</div>
+            <p class="subtitulo">Sistema de Acompanhamento de Atletas</p>
+        </div>
+
+        <div class="alerta-conexao">
+            ✅ Conectado — dados em tempo real | Atletas respondem e aparecem aqui na hora! 🦈
+        </div>
+
+        <div class="abas">
+            <button class="aba ativa" data-alvo="cadastro">👤 Atletas</button>
+            <button class="aba" data-alvo="historico">📊 Avaliações</button>
+        </div>
+
+        <!-- CADASTRO -->
+        <div id="cadastro" class="conteudo-aba ativa">
+            <div class="card">
+                <h2>➕ Cadastrar Novo Atleta</h2>
+                <div class="grupo">
+                    <label>Nome Completo *</label>
+                    <input type="text" id="nomeAtleta" placeholder="Ex: João da Silva">
+                </div>
+                <div class="grupo">
+                    <label>Categoria / Equipe</label>
+                    <input type="text" id="categoria" placeholder="Ex: Sub-17 / Sub-20 / Principal">
+                </div>
+                <div class="grupo">
+                    <label>Posição</label>
+                    <input type="text" id="posicao" placeholder="Ex: Goleiro, Zagueiro, Atacante">
+                </div>
+                <button class="btn btn-principal" onclick="cadastrarAtleta()">✅ Cadastrar Atleta</button>
+            </div>
+            <div class="card">
+                <h2>📋 Atletas Cadastrados <span class="qtd-badge" id="qtdAtletas">0</span></h2>
+                <div id="listaAtletas" class="lista">
+                    <p class="vazio">Carregando...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- HISTÓRICO -->
+        <div id="historico" class="conteudo-aba">
+            <div class="card">
+                <h2>📊 Avaliações em Tempo Real</h2>
+                <div class="filtro">
+                    <label>Filtrar atleta:</label>
+                    <select id="filtro" onchange="carregarHistorico()">
+                        <option value="todos">🦈 Todos os atletas</option>
+                    </select>
+                </div>
+                <div style="display:flex;gap:8px;margin-bottom:15px;">
+                    <button class="btn btn-dourado btn-pequeno" onclick="exportar()">📥 Exportar</button>
+                </div>
+                <div id="listaHist" class="lista">
+                    <p class="vazio">Aguardando primeiras avaliações...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCqX5xQZbZtKzW8Y7m9xQp8vY7z9X8Y7z9X8Y7z9X8",
+  authDomain: "sistema-atletas.firebaseapp.com",
+  databaseURL: "https://sistema-atletas-default-rtdb.firebaseio.com",
+  projectId: "sistema-atletas",
+  storageBucket: "sistema-atletas.appspot.com",
+  messagingSenderId: "123456789012",
+  appId: "1:123456789012:web:abc123def456ghi789jkl01"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+document.querySelectorAll('.aba').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.aba').forEach(b => b.classList.remove('ativa'));
+        document.querySelectorAll('.conteudo-aba').forEach(c => c.classList.remove('ativa'));
+        btn.classList.add('ativa');
+        document.getElementById(btn.dataset.alvo).classList.add('ativa');
+        if (btn.dataset.alvo === 'historico') preencherFiltro();
+    });
+});
+
+async function cadastrarAtleta() {
+    const nome = document.getElementById('nomeAtleta').value.trim();
+    const cat = document.getElementById('categoria').value.trim() || 'Não informado';
+    const pos = document.getElementById('posicao').value.trim() || 'Não informado';
+    
+    if (!nome) { alert('Digite o nome do atleta!'); return; }
+    
+    const ref = db.ref('atletas').push();
+    await ref.set({ id: ref.key, nome, categoria: cat, posicao: pos });
+    
+    document.getElementById('nomeAtleta').value = '';
+    document.getElementById('categoria').value = '';
+    document.getElementById('posicao').value = '';
+    
+    alert(`✅ "${nome}" cadastrado com sucesso!`);
+}
+
+db.ref('atletas').on('value', snap => {
+    const dados = snap.val() || {};
+    const lista = Object.values(dados);
+    document.getElementById('qtdAtletas').textContent = lista.length;
+    
+    const el = document.getElementById('listaAtletas');
+    if (!lista.length) {
+        el.innerHTML = '<p class="vazio">Nenhum atleta cadastrado ainda.</p>';
+        return;
+    }
+    
+    el.innerHTML = lista.map(a => `
+        <div class="item">
+            <div class="item-cabecalho">
+                <div>
+                    <div class="item-nome">${a.nome}</div>
+                    <div style="font-size:0.9rem; color:#666;">${a.categoria} • ${a.posicao}</div>
+                </div>
+                <div class="item-acoes">
+                    <button class="btn btn-vermelho btn-pequeno" onclick="excluirAtleta('${a.id}', '${a.nome}')">🗑️ Excluir</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+});
+
+async function excluirAtleta(id, nome) {
+    if (!confirm(`⚠️ EXCLUIR "${nome}"?\n\nTODAS as avaliações dele também serão apagadas!\nEsta ação NÃO tem volta!`)) return;
+    
+    await db.ref('atletas/' + id).remove();
+    
+    const histSnap = await db.ref('historico').once('value');
+    const hist = histSnap.val() || {};
+    for (const [key, reg] of Object.entries(hist)) {
+        if (reg.atletaId === id) await db.ref('historico/' + key).remove();
+    }
+    
+    alert(`✅ "${nome}" foi excluído do sistema!`);
+}
+
+async function preencherFiltro() {
+    const snap = await db.ref('atletas').once('value');
+    const lista = Object.values(snap.val() || {});
+    const sel = document.getElementById('filtro');
+    sel.innerHTML = '<option value="todos">🦈 Todos os atletas</option>' +
+        lista.map(a => `<option value="${a.id}">${a.nome}</option>`).join('');
+}
+
+db.ref('historico').on('value', snap => {
+    const filtro = document.getElementById('filtro').value;
+    let hist = Object.values(snap.val() || {}).reverse();
+    
+    if (filtro !== 'todos') hist = hist.filter(r => r.atletaId === filtro);
+    
+    const el = document.getElementById('listaHist');
+    if (!hist.length) {
+        el.innerHTML = '<p class="vazio">Nenhuma avaliação recebida ainda. Aguarde os atletas responderem.</p>';
+        return;
+    }
+    
+    el.innerHTML = hist.map(r => {
+        const corCansa = r.cansaço.valor < 30 ? '#003366' : r.cansaço.valor < 60 ? '#f57c00' : '#c62828';
+        const corRec = r.recuperacao.valor >= 60 ? '#003366' : r.recuperacao.valor >= 40 ? '#f57c00' : '#c62828';
+        return `
+        <div class="item">
+            <div class="item-cabecalho">
+                <div>
+                    <div class="item-nome">${r.nome}</div>
+                    <div style="font-size:0.9rem; color:#666;">📅 ${r.data}</div>
+                </div>
+                <button class="btn btn-vermelho btn-pequeno" onclick="excluirRegistro('${r.id}')">🗑️</button>
+            </div>
+            <div class="metricas">
+                <div class="metrica">
+                    <span>Cansaço</span>
+                    <div class="valor-m" style="color:${corCansa}">${r.cansaço.valor}%</div>
+                    <div style="font-size:0.8rem;">${r.cansaço.nivel}</div>
+                </div>
+                <div class="metrica">
+                    <span>Recuperação</span>
+                    <div class="valor-m" style="color:${corRec}">${r.recuperacao.valor}%</div>
+                    <div style="font-size:0.8rem;">${r.recuperacao.nivel}</div>
+                </div>
+                <div class="metrica">
+                    <span>Balanço</span>
+                    <div class="valor-m">${+r.balanco > 0 ? '+' : ''}${r.balanco}</div>
+                </div>
+            </div>
+            <p style="margin-top:10px; padding:8px 10px; background:#f8f8f8; border-radius:8px; font-size:0.9rem;">
+                ${r.recomendacao}
+            </p>
+        </div>
+    `}).join('');
+});
+
+async function excluirRegistro(id) {
+    if (!confirm('Excluir este registro?')) return;
+    await db.ref('historico/' + id).remove();
+}
+
+async function exportar() {
+    const filtro = document.getElementById('filtro').value;
+    const snap = await db.ref('historico').once('value');
+    let hist = Object.values(snap.val() || {}).reverse();
+    if (filtro !== 'todos') hist = hist.filter(r => r.atletaId === filtro);
+    
+    if (!hist.length) { alert('Sem dados para exportar!'); return; }
+    
+    let txt = `=== LONDRINA ESPORTE CLUBE ===\n`;
+    txt += `RELATÓRIO DE ACOMPANHAMENTO — ${new Date().toLocaleString('pt-BR')}\n\n`;
+    hist.forEach((r, i) => {
+        txt += `${i+1}. ${r.data} — ${r.nome}\n`;
+        txt += `   Categoria: ${r.categoria}\n`;
+        txt += `   Cansaço: ${r.cansaço.valor}% | ${r.cansaço.nivel}\n`;
+        txt += `   Recuperação: ${r.recuperacao.valor}% | ${r.recuperacao.nivel}\n`;
+        txt += `   Balanço: ${+r.balanco > 0 ? '+' : ''}${r.balanco}\n`;
+        txt += `   → ${r.recomendacao}\n\n`;
+    });
+    
+    const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `LondrinaEC-Acompanhamento-${Date.now()}.txt`;
+    a.click();
+}
+</script>
+</body>
+</html>
