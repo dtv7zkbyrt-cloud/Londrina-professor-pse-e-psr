@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Acompanhamento — Londrina EC</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
+        /* CORES OFICIAIS LONDRINA EC — AZUL, BRANCO E PRETO */
+        :root {
+            --azul: #003366;
+            --azul-escuro: #002244;
+            --branco: #ffffff;
+            --cinza-claro: #f5f5f5;
+            --cinza: #e0e0e0;
+            --cinza-texto: #333333;
+            --preto: #121212;
+            --dourado: #d4af37;
+        }
+        body {
+            background: linear-gradient(180deg, var(--azul), var(--azul-escuro), var(--preto));
+            min-height: 100vh;
+            padding: 15px;
+            color: var(--branco);
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        .cabecalho { text-align: center; margin-bottom: 25px; }
+        .escudo {
+            font-size: 3.5rem;
+            margin-bottom: 5px;
+        }
+        .titulo {
+            font-size: 1.5rem;
+            font-weight: 900;
+            letter-spacing: 1px;
+            color: var(--branco);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+        }
+        .subtitulo { opacity: 0.9; font-size: 0.9rem; margin-top: 5px; }
+        .card {
+            background: var(--branco);
+            color: var(--cinza-texto);
+            border-radius: 16px;
+            padding: 22px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            border-top: 4px solid var(--dourado);
+        }
+        h2 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--azul);
+        }
+        .grupo { margin-bottom: 16px; }
+        label { display: block; margin-bottom: 6px; font-weight: 600; color: var(--preto); }
+        input, select {
+            width: 100%;
+            padding: 13px;
+            border-radius: 8px;
+            border: 2px solid var(--cinza);
+            font-size: 1rem;
+            transition: border 0.3s;
+        }
+        input:focus, select:focus { outline: none; border-color: var(--azul); }
+        input[type="range"] {
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            -webkit-appearance: none;
+            outline: none;
+            padding: 0;
+            border: none;
+        }
+        .cansaço input[type="range"] {
+            background: linear-gradient(to right, #a5d6a7, #ff9800, #d32f2f);
+        }
+        .recuperacao input[type="range"] {
+            background: linear-gradient(to right, #ef9a9a, #ffc107, #4caf50);
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: var(--branco);
+            border: 3px solid var(--azul);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .valor { font-weight: 700; margin-top: 6px; font-size: 0.95rem; color: var(--azul); }
+        .btn {
+            border: none;
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        .btn-principal {
+            background: var(--azul);
+            color: var(--branco);
+        }
+        .btn-principal:hover { background: var(--azul-escuro); transform: translateY(-2px); }
+        .resultado {
+            margin-top: 18px;
+            padding: 14px;
+            border-radius: 10px;
+            display: none;
+            font-weight: 600;
+            text-align: center;
+        }
+        .resumo {
+            background: linear-gradient(135deg, #e6f0fa, #c8d8f0);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+            border-left: 4px solid var(--azul);
+        }
+        .resumo h3 { color: var(--azul); margin-bottom: 10px; font-size: 1.05rem; }
+        .info-perfil {
+            background: linear-gradient(135deg, #e6f0fa, #d4e6f1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        .item-hist {
+            background: var(--cinza-claro);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--azul);
+        }
+        .data { font-weight: 700; color: var(--azul); margin-bottom: 5px; }
+        .vazio { text-align: center; padding: 30px; color: #888; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="cabecalho">
+            <div class="escudo">🦈</div>
+            <div class="titulo">LONDRINA EC</div>
+            <p class="subtitulo">Meu Acompanhamento Físico</p>
+        </div>
+
+        <div class="card">
+            <div class="info-perfil" id="infoAtleta">
+                Selecione seu nome abaixo
+            </div>
+            <div class="grupo">
+                <label>👤 Seu Nome</label>
+                <select id="meuNome">
+                    <option value="">-- Carregando lista --</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="card cansaço">
+            <h2>🔋 Nível de Cansaço</h2>
+            <div class="grupo">
+                <label>Esforço recente <span class="valor">5/10</span></label>
+                <input type="range" id="esforco" min="0" max="10" value="5">
+            </div>
+            <div class="grupo">
+                <label>Dor muscular / Peso corporal <span class="valor">3/10</span></label>
+                <input type="range" id="dor" min="0" max="10" value="3">
+            </div>
+            <div class="grupo">
+                <label>Cansaço mental / Concentração <span class="valor">2/10</span></label>
+                <input type="range" id="mental" min="0" max="10" value="2">
+            </div>
+            <div class="resultado" id="resCansaco"></div>
+        </div>
+
+        <div class="card recuperacao">
+            <h2>💪 Nível de Recuperação</h2>
+            <div class="grupo">
+                <label>Qualidade do sono <span class="valor">7/10</span></label>
+                <input type="range" id="sono" min="0" max="10" value="7">
+            </div>
+            <div class="grupo">
+                <label>Alimentação e hidratação <span class="valor">6/10</span></label>
+                <input type="range" id="nutricao" min="0" max="10" value="6">
+            </div>
+            <div class="grupo">
+                <label>Tempo de descanso <span class="valor">5/10</span></label>
+                <input type="range" id="tempo" min="0" max="10" value="5">
+            </div>
+            <div class="grupo">
+                <label>Disposição ao acordar <span class="valor">7/10</span></label>
+                <input type="range" id="disposicao" min="0" max="10" value="7">
+            </div>
+            
+            <button class="btn btn-principal" onclick="enviar()">✅ Enviar Avaliação</button>
+            <div class="resultado" id="resRecuperacao"></div>
+        </div>
+
+        <div class="resumo" id="caixaResumo">
+            <h3>📋 Recomendação da Comissão Técnica</h3>
+            <p id="textoResumo"></p>
+        </div>
+
+        <div class="card">
+            <h2>📊 Meus Últimos Resultados</h2>
+            <div id="meuHist" class="lista">
+                <p class="vazio">Selecione seu nome para ver seu histórico.</p>
+            </div>
+        </div>
+    </div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCqX5xQZbZtKzW8Y7m9xQp8vY7z9X8Y7z9X8Y7z9X8",
+  authDomain: "sistema-atletas.firebaseapp.com",
+  databaseURL: "https://sistema-atletas-default-rtdb.firebaseio.com",
+  projectId: "sistema-atletas",
+  storageBucket: "sistema-atletas.appspot.com",
+  messagingSenderId: "123456789012",
+  appId: "1:123456789012:web:abc123def456ghi789jkl01"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let atletaAtual = null;
+
+document.querySelectorAll('input[type="range"]').forEach(slider => {
+    const span = slider.parentElement.querySelector('.valor');
+    slider.addEventListener('input', () => span.textContent = `${slider.value}/10`);
+});
+
+const sel = document.getElementById('meuNome');
+db.ref('atletas').on('value', snap => {
+    const lista = Object.values(snap.val() || {});
+    sel.innerHTML = '<option value="">-- Selecione seu nome --</option>' +
+        lista.map(a => `<option value="${a.id}">${a.nome}</option>`).join('');
+});
+
+sel.addEventListener('change', async () => {
+    const id = sel.value;
+    if (!id) {
+        document.getElementById('infoAtleta').innerHTML = 'Selecione seu nome abaixo';
+        atletaAtual = null;
+        document.getElementById('meuHist').innerHTML = '<p class="vazio">Selecione seu nome.</p>';
+        return;
+    }
+    
+    const snap = await db.ref('atletas/' + id).once('value');
+    atletaAtual = snap.val();
+    document.getElementById('infoAtleta').innerHTML = `
+        <strong style="color:#003366; font-size:1.05rem;">🦈 ${atletaAtual.nome}</strong><br>
+        <span style="font-size:0.9rem; color:#555;">${atletaAtual.categoria} • ${atletaAtual.posicao}</span>
+    `;
+    
+    carregarHistorico();
+});
+
+async function enviar() {
+    if (!atletaAtual) { alert('Selecione seu nome primeiro!'); return; }
+    
+    const e = +document.getElementById('esforco').value;
+    const d = +document.getElementById('dor').value;
+    const m = +document.getElementById('mental').value;
+    const s = +document.getElementById('sono').value;
+    const n = +document.getElementById('nutricao').value;
+    const t = +document.getElementById('tempo').value;
+    const disp = +document.getElementById('disposicao').value;
+    
+    const cansPct = ((e + d + m) / 30) * 100;
+    const recPct = ((s + n + t + disp) / 40) * 100;
+    const bal = recPct - cansPct;
+    
+    const cansNiv = cansPct < 30 ? '🟢 Leve' :
+                    cansPct < 60 ? '🟡 Moderado' :
+                    cansPct < 80 ? '🟠 Elevado' : '🔴 Muito Elevado';
+    
+    const recNiv = recPct >= 80 ? '🟢 Total' :
+                   recPct >= 60 ? '🟡 Parcial' :
+                   recPct >= 40 ? '🟡 Insuficiente' : '🔴 Baixa';
+    
+    const rec = bal >= 20 ? '✅ Excelente! Você está bem recuperado. Pode treinar com força máxima!' :
+                bal >= 0 ? '⚠️ Bom nível de recuperação. Siga o planejamento, fique atento aos sinais do corpo.' :
+                bal >= -20 ? '⚠️ Descanse mais hoje. Treinamento leve é recomendado.' :
+                '🛑 Repouso ou atividade bem leve obrigatório! Comunique a comissão técnica.';
+    
+    const resC = document.getElementById('resCansaco');
+    resC.style.display = 'block';
+    resC.style.background = cansPct < 60 ? '#e6f0fa' : cansPct < 80 ? '#fff3e0' : '#ffebee';
+    resC.innerHTML = `<strong>${cansNiv}</strong><br>${cansPct.toFixed(1)}%`;
+    
+    const resR = document.getElementById('resRecuperacao');
+    resR.style.display = 'block';
+    resR.style.background = recPct >= 60 ? '#e6f0fa' : recPct >= 40 ? '#fff3e0' : '#ffebee';
+    resR.innerHTML = `<strong>${recNiv}</strong><br>${recPct.toFixed(1)}%`;
+    
+    document.getElementById('caixaResumo').style.display = 'block';
+    document.getElementById('textoResumo').textContent = rec;
+    
+    const ref = db.ref('historico').push();
+    await ref.set({
+        id: ref.key,
+        atletaId: atletaAtual.id,
+        nome: atletaAtual.nome,
+        categoria: atletaAtual.categoria,
+        data: new Date().toLocaleString('pt-BR'),
+        cansaço: { valor: cansPct.toFixed(1), nivel: cansNiv },
+        recuperacao: { valor: recPct.toFixed(1), nivel: recNiv },
+        balanco: bal.toFixed(1),
+        recomendacao: rec
+    });
+    
+    alert('✅ Avaliação enviada! O professor já pode acompanhar! 🦈');
+    carregarHistorico();
+}
+
+async function carregarHistorico() {
+    if (!atletaAtual) return;
+    
+    const snap = await db.ref('historico').once('value');
+    const hist = Object.values(snap.val() || {})
+        .filter(r => r.atletaId === atletaAtual.id)
+        .reverse()
+        .slice(0, 5);
+    
+    const el = document.getElementById('meuHist');
+    if (!hist.length) {
+        el.innerHTML = '<p class="vazio">Nenhuma avaliação enviada ainda.</p>';
+        return;
+    }
+    
+    el.innerHTML = hist.map(r => `
+        <div class="item-hist">
+            <div class="data">📅 ${r.data}</div>
+            <div style="margin:4px 0;">
+                <strong>Cansaço:</strong> ${r.cansaço.valor}% ${r.cansaço.nivel}
+            </div>
+            <div style="margin:4px 0;">
+                <strong>Recuperação:</strong> ${r.recuperacao.valor}% ${r.recuperacao.nivel}
+            </div>
+            <div style="margin-top:8px; font-size:0.9rem; color:#444;">
+                ${r.recomendacao}
+            </div>
+        </div>
+    `).join('');
+}
+</script>
+</body>
+</html>
